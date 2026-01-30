@@ -1,0 +1,48 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+tfplan
+tfplan.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate.d/
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Secrets
+*.pem
+*.key
+secrets/
+client_secret_*.json
+*_accessKeys.csv
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
+
+# SSM parameter exports
+*-secrets.json
+ssm-*.txt
+

@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and fill in the values
+# WARNING: Do not commit terraform.tfvars to version control!
+
+region  = "us-east-2"
+profile = "dentia"
+domain  = "dentiaapp.com"
+
+# Get this from your existing Aurora cluster
+aurora_master_username = "dentia_admin"
+aurora_master_password = "YOUR_AURORA_MASTER_PASSWORD"
+
+# Generate a strong password for Discourse database user
+discourse_db_password = "GENERATE_STRONG_PASSWORD_HERE"
+
+# Docker image tag (managed by CI/CD)
+discourse_image_tag = "latest"
+

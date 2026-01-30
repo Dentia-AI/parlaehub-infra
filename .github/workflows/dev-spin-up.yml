@@ -1,0 +1,129 @@
+name: Spin Up Dev Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name for dev environment'
+        required: true
+        type: string
+      discourse_image_tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+        type: string
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  spin-up:
+    name: Create Dev Environment
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Set environment variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BRANCH_NAME="${{ inputs.branch_name }}"
+            IMAGE_TAG="${{ inputs.discourse_image_tag }}"
+          else
+            BRANCH_NAME="${{ github.head_ref }}"
+            IMAGE_TAG="pr-${{ github.event.pull_request.number }}"
+          fi
+          
+          # Sanitize branch name for AWS resources
+          ENV_SUFFIX=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-20)
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "env_suffix=$ENV_SUFFIX" >> $GITHUB_OUTPUT
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "workspace_name=dev-$ENV_SUFFIX" >> $GITHUB_OUTPUT
+
+      - name: Terraform Init
+        working-directory: ./environments/dev
+        run: terraform init
+
+      - name: Select or Create Workspace
+        working-directory: ./environments/dev
+        run: |
+          terraform workspace select ${{ steps.vars.outputs.workspace_name }} || \
+          terraform workspace new ${{ steps.vars.outputs.workspace_name }}
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ./environments/dev
+        run: |
+          terraform plan \
+            -var="branch_name=${{ steps.vars.outputs.branch_name }}" \
+            -var="aurora_dev_password=${{ secrets.AURORA_DEV_PASSWORD }}" \
+            -var="ecr_repository_url=${{ secrets.ECR_REPOSITORY_URL }}" \
+            -var="discourse_image_tag=${{ steps.vars.outputs.image_tag }}" \
+            -var="listener_priority_offset=${{ github.event.pull_request.number || 0 }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./environments/dev
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        working-directory: ./environments/dev
+        run: |
+          DISCOURSE_URL=$(terraform output -raw discourse_url)
+          echo "discourse_url=$DISCOURSE_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with Environment URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `### 🚀 Dev Environment Ready!
+            
+            **Discourse URL**: ${{ steps.outputs.outputs.discourse_url }}
+            
+            **Environment**: \`${{ steps.vars.outputs.workspace_name }}\`
+            **Image Tag**: \`${{ steps.vars.outputs.image_tag }}\`
+            
+            This environment will be automatically destroyed when the PR is closed.
+            
+            ---
+            *Powered by ParlaeHub Infrastructure*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Output Summary
+        run: |
+          echo "## Dev Environment Created ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URL**: ${{ steps.outputs.outputs.discourse_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: \`${{ steps.vars.outputs.workspace_name }}\`" >> $GITHUB_STEP_SUMMARY
+

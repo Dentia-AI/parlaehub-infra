@@ -1,0 +1,25 @@
+# Dev Environment Example Configuration
+# Copy this file to terraform.tfvars and fill in the values
+# WARNING: Do not commit terraform.tfvars to version control!
+
+region  = "us-east-2"
+profile = "dentia"
+domain  = "dentiaapp.com"
+
+# Git branch name (auto-populated by CI/CD)
+branch_name = "feature-branch"
+
+# Generate a password for dev Aurora cluster (can be simple for dev)
+aurora_dev_password = "GENERATE_PASSWORD_HERE"
+
+# ECR repository URL (from production output)
+ecr_repository_url = "123456789012.dkr.ecr.us-east-2.amazonaws.com/dentiahub/discourse"
+
+# Docker image tag (auto-populated by CI/CD)
+discourse_image_tag = "pr-123"
+
+# Listener priority offset (increment for each PR to avoid conflicts)
+listener_priority_offset = 0
+
+# Shared DiscourseConnect secret (must match Dentia app)
+discourse_connect_secret = "SET_DEV_SSO_SECRET"
