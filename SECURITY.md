@@ -21,7 +21,7 @@
 
 Run this check:
 ```bash
-cd /Users/shaunk/Projects/Dentia/parlaehub-infra
+cd /Users/shaunk/Projects/Parlae-AI/parlaehub-infra
 git status
 
 # Look for sensitive files:
@@ -123,7 +123,7 @@ resource "aws_db_instance" "db" {
 
 ```bash
 # Check what's actually committed
-cd /Users/shaunk/Projects/Dentia/parlaehub-infra
+cd /Users/shaunk/Projects/Parlae-AI/parlaehub-infra
 git ls-tree -r main --name-only
 
 # Verify no sensitive files
